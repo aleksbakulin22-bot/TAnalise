@@ -1,0 +1,2107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>AI-анализатор текста</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #000000;
+      --surface: #000000;
+      --surface-raised: #0b0d0f;
+      --border: #2f3336;
+      --border-soft: #202327;
+      --ink: #e7e9ea;
+      --muted: #71767b;
+      --accent: #1d9bf0;
+      --accent-dim: rgba(29, 155, 240, .12);
+      --on-accent-btn: #0f1419;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .container {
+      width: min(1000px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 60px;
+    }
+
+    /* ---------- Brand header, X-style: flat, monochrome, no gradients ---------- */
+
+    .brandbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      flex: 0 0 auto;
+      border-radius: 10px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-mark svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+
+    .brand-name {
+      margin: 0;
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      color: var(--ink);
+    }
+
+    .brand-name span {
+      color: var(--accent);
+    }
+
+    .brand-copy {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 12px;
+    }
+
+    .brandbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    .lang-toggle {
+      width: auto;
+      min-width: 0;
+      margin: 0;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .lang-toggle:hover {
+      background: var(--surface-raised);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .runtime-error-banner {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 16px;
+      background: #3a0d12;
+      color: #ffd4d9;
+      border-bottom: 1px solid #7a1f2b;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .container > h1.page-title,
+    .subtitle {
+      margin: 0 0 24px;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    /* ---------- Cards: flat surfaces + hairline borders, no shadows ---------- */
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      resize: vertical;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+
+      font-family: inherit;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--ink);
+
+      outline: none;
+      transition: 0.15s;
+    }
+
+    textarea::placeholder {
+      color: var(--muted);
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    button {
+      width: auto;
+      min-width: 220px;
+      margin-top: 16px;
+      padding: 12px 22px;
+
+      border: 0;
+      border-radius: 999px;
+
+      background: #eff3f4;
+      color: var(--on-accent-btn);
+
+      font-size: 15px;
+      font-weight: 800;
+
+      cursor: pointer;
+      transition: 0.15s;
+    }
+
+    button:hover {
+      background: #d7dbdc;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    #readingTime {
+      font-size: 19px;
+      line-height: 1.3;
+    }
+
+    .stat-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+
+    .details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .details h2 {
+      margin-top: 0;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .details h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    #topWords,
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .word {
+      display: inline-block;
+      padding: 7px 12px;
+
+      border-radius: 999px;
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 7px 12px;
+
+      border-radius: 999px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--ink);
+
+      font-weight: 600;
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    .chip.emoji {
+      font-size: 18px;
+      padding: 5px 12px;
+    }
+
+    .chip-group + .chip-group {
+      margin-top: 20px;
+    }
+
+    #longestSentence {
+      color: var(--ink);
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .empty {
+      color: var(--muted) !important;
+      font-style: normal;
+      font-weight: 400;
+    }
+
+    /* ---------- Pitfalls panel ---------- */
+
+    .pitfalls-panel {
+      margin: 0 0 16px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .pitfalls-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .pitfalls-head h2 {
+      margin: 0 0 6px;
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    .pitfalls-head p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .pitfalls-badge {
+      flex: 0 0 auto;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .pitfalls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .pitfall-box {
+      min-height: 90px;
+      padding: 15px;
+      border-radius: 14px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-soft);
+    }
+
+    .pitfall-box h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .pitfall-box p,
+    .pitfall-box li {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .pitfall-box p {
+      margin: 0;
+    }
+
+    .pitfall-box ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .pitfall-empty {
+      color: var(--accent) !important;
+      font-weight: 650;
+    }
+
+    .pitfall-item + .pitfall-item {
+      margin-top: 10px;
+    }
+
+    @media (max-width: 700px) {
+      .container {
+        padding: 24px 0 40px;
+      }
+
+      .results,
+      .details,
+      .pitfalls-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .brandbar {
+        align-items: flex-start;
+      }
+
+      .eyebrow {
+        display: none;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .lang-toggle {
+        width: auto;
+      }
+
+      .pitfalls-head {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<main class="container">
+  <header class="brandbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 20L10.2 4H13.8L21 20H17.6L15.9 16H8.1L6.4 20H3ZM9.3 13.2H14.7L12 6.9L9.3 13.2Z" fill="#0f1419"/>
+        </svg>
+      </span>
+      <div>
+        <h1 class="brand-name">Analise<span>T</span></h1>
+        <p class="brand-copy" data-i18n="brandCopy">Быстрый разбор текста — без лишнего шума.</p>
+      </div>
+    </div>
+    <div class="brandbar-actions">
+      <p class="eyebrow" data-i18n="eyebrow">Text intelligence</p>
+      <button id="langToggle" type="button" class="lang-toggle" aria-label="Switch to English">EN</button>
+    </div>
+  </header>
+
+  <h1 class="page-title" data-i18n="pageTitle">AI-анализатор текста</h1>
+
+  <p class="subtitle" data-i18n="subtitle">
+    Вставьте текст и получите подробный анализ.
+  </p>
+
+
+  <!-- Поле ввода -->
+
+  <section class="card input-card">
+
+    <textarea
+      id="textInput"
+      placeholder="Вставьте сюда текст для анализа..."
+      data-i18n-placeholder="textareaPlaceholder"
+    ></textarea>
+
+    <button id="analyzeButton" data-i18n="analyzeButton">
+      Проанализировать
+    </button>
+
+  </section>
+
+  <section class="card pitfalls-panel" aria-labelledby="pitfallsTitle">
+    <div class="pitfalls-head">
+      <div>
+        <h2 id="pitfallsTitle" data-i18n="pitfallsTitle">Подводные камни</h2>
+        <p data-i18n="pitfallsDesc">Найдём места, которые стоит перепроверить или обсудить внимательнее.</p>
+      </div>
+      <span class="pitfalls-badge" data-i18n="pitfallsBadge">Критическое чтение</span>
+    </div>
+    <button id="pitfallsButton" type="button" data-i18n="pitfallsButton">Найти подводные камни</button>
+    <div class="pitfalls-grid" id="pitfallsResult" aria-live="polite">
+      <div class="pitfall-box"><h3>Статус</h3><p>Вставьте текст и нажмите «Найти подводные камни».</p></div>
+    </div>
+  </section>
+
+
+  <!-- Основная статистика -->
+
+  <section class="results">
+
+    <div class="stat">
+
+      <div class="stat-label" data-i18n="statWords">
+        Количество слов
+      </div>
+
+      <div class="stat-value" id="wordCount">
+        0
+      </div>
+
+    </div>
+
+
+    <div class="stat">
+
+      <div class="stat-label" data-i18n="statSentences">
+        Количество предложений
+      </div>
+
+      <div class="stat-value" id="sentenceCount">
+        0
+      </div>
+
+      <div class="stat-hint" id="sentenceHint"></div>
+
+    </div>
+
+
+    <div class="stat">
+
+      <div class="stat-label" data-i18n="statReadingTime">
+        Время чтения
+      </div>
+
+      <div class="stat-value" id="readingTime">
+        0 сек
+      </div>
+
+    </div>
+
+
+    <div class="stat">
+
+      <div class="stat-label" data-i18n="statEmoji">
+        Смайлы
+      </div>
+
+      <div class="stat-value" id="emojiCount">
+        0
+      </div>
+
+    </div>
+
+
+    <div class="stat">
+
+      <div class="stat-label" data-i18n="statLinks">
+        Ссылки
+      </div>
+
+      <div class="stat-value" id="linkCount">
+        0
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- Дополнительная информация -->
+
+  <section class="details">
+
+
+    <div class="card">
+
+      <h2 data-i18n="topWordsTitle">
+        5 самых частых слов
+      </h2>
+
+      <div id="topWords">
+
+        <span class="empty">
+          Здесь появятся результаты анализа
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <h2 data-i18n="longestSentenceTitle">
+        Самое длинное предложение
+      </h2>
+
+      <p id="longestSentence" class="empty">
+        Здесь появится результат анализа
+      </p>
+
+    </div>
+
+
+    <div class="card full-width">
+
+      <h2 data-i18n="chipsTitle">
+        Смайлы и ссылки в тексте
+      </h2>
+
+      <div class="chip-group">
+
+        <h3 data-i18n="emojiSubtitle">Смайлы</h3>
+
+        <div id="emojiList" class="chip-list">
+          <span class="empty">Смайлы не найдены</span>
+        </div>
+
+      </div>
+
+      <div class="chip-group">
+
+        <h3 data-i18n="linksSubtitle">Ссылки и адреса почты</h3>
+
+        <div id="linkList" class="chip-list">
+          <span class="empty">Ссылки не найдены</span>
+        </div>
+
+      </div>
+
+    </div>
+
+
+  </section>
+
+</main>
+
+
+<script>
+
+
+/* =========================================================
+   НАСТРОЙКИ
+   ========================================================= */
+
+
+/*
+ * Скорость чтения задаётся ДИАПАЗОНОМ, а не одним числом.
+ *
+ * READING_SPEED_SLOW  — медленный читатель (внимательное чтение)
+ * READING_SPEED_FAST  — быстрый читатель (беглое чтение)
+ *
+ * Итоговое время чтения показывается как «от и до»,
+ * чтобы не создавать ложное ощущение точности.
+ */
+const READING_SPEED_SLOW = 150;
+const READING_SPEED_FAST = 250;
+
+
+/* Пауза после обычных знаков препинания: , ; : */
+const PAUSE_AFTER_PUNCTUATION = 0.18;
+
+
+/* Пауза после конца предложения: . ! ? … */
+const PAUSE_AFTER_SENTENCE = 0.35;
+
+
+/* Смайл и ссылка тоже отнимают время у читателя. */
+const PAUSE_FOR_EMOJI = 0.2;
+const PAUSE_FOR_LINK = 0.6;
+
+
+/* Число тоже нужно осознать, а не просто пробежать взглядом. */
+const PAUSE_FOR_NUMBER = 0.3;
+
+
+/*
+ * Если в тексте нет знаков препинания и границы предложений
+ * определены «на глаз» — читать такой текст сложнее.
+ * Добавляем к времени чтения штраф в виде множителя.
+ */
+const APPROXIMATE_TIME_PENALTY = 1.15;
+
+
+/*
+ * Средняя длина слова (символов) — своя для каждого языка,
+ * чтобы «сложность» текста считалась относительно нормы
+ * именно этого языка, а не всегда относительно русского.
+ */
+const AVERAGE_WORD_LENGTH = { ru: 5.3, en: 4.7 };
+const COMPLEXITY_MIN = 0.85;
+const COMPLEXITY_MAX = 1.4;
+
+
+/*
+ * Слово попадает в ТОП только если оно
+ * встречается хотя бы столько раз.
+ *
+ * 2 — значит «слово реально повторяется».
+ */
+const MIN_WORD_FREQUENCY = 2;
+
+
+/*
+ * Максимальная длина куска текста без знаков препинания,
+ * который ещё можно считать ОДНИМ предложением.
+ *
+ * Всё, что длиннее, делится на части примерно такого размера.
+ */
+const MAX_WORDS_WITHOUT_PUNCTUATION = 12;
+
+
+/* =========================================================
+   HTML-ЭЛЕМЕНТЫ
+   ========================================================= */
+
+const textInput = document.getElementById("textInput");
+const analyzeButton = document.getElementById("analyzeButton");
+
+const wordCount = document.getElementById("wordCount");
+const sentenceCount = document.getElementById("sentenceCount");
+const sentenceHint = document.getElementById("sentenceHint");
+const readingTime = document.getElementById("readingTime");
+const emojiCount = document.getElementById("emojiCount");
+const linkCount = document.getElementById("linkCount");
+
+const topWords = document.getElementById("topWords");
+const longestSentence = document.getElementById("longestSentence");
+const emojiList = document.getElementById("emojiList");
+const linkList = document.getElementById("linkList");
+
+const langToggle = document.getElementById("langToggle");
+
+
+/*
+ * Текущий язык интерфейса и анализа: "ru" или "en".
+ * От него зависят подписи на странице, стоп-слова,
+ * триггеры «подводных камней» и средняя длина слова.
+ */
+let currentLang = "ru";
+
+
+/* =========================================================
+   СТОП-СЛОВА
+   =========================================================
+
+   Свой набор для каждого языка: без этого на английском
+   тексте в ТОП слов попадали бы «the», «and», «this» —
+   служебные слова, а не содержательные.
+   ========================================================= */
+
+const STOP_WORDS = {
+
+  ru: new Set([
+
+    "и", "в", "во", "не", "что", "он", "на", "я", "с", "со",
+    "как", "а", "то", "все", "она", "так", "его", "но", "да", "ты",
+    "к", "у", "же", "вы", "за", "бы", "по", "только", "ее", "мне",
+    "было", "вот", "от", "меня", "еще", "нет", "о", "из", "ему",
+    "теперь", "когда", "даже", "ну", "вдруг", "ли", "если", "уже",
+    "или", "ни", "быть", "был", "была", "были", "это", "этот",
+    "эта", "эти", "для", "до", "при", "без", "под", "над", "про",
+    "мы", "они", "им", "их", "там", "тут", "здесь", "также",
+    "может", "можно"
+
+  ]),
+
+  en: new Set([
+
+    "the", "a", "an", "and", "or", "but", "if", "then", "so",
+    "because", "as", "of", "in", "on", "at", "to", "for", "with",
+    "without", "by", "from", "up", "down", "out", "about", "into",
+    "over", "under", "again", "once", "here", "there", "when",
+    "where", "why", "how", "all", "any", "both", "each", "few",
+    "more", "most", "other", "some", "such", "no", "nor", "not",
+    "only", "own", "same", "than", "too", "very", "can", "will",
+    "just", "should", "now", "is", "are", "was", "were", "be",
+    "been", "being", "have", "has", "had", "do", "does", "did",
+    "this", "that", "these", "those", "i", "you", "he", "she",
+    "it", "we", "they", "them", "his", "her", "its", "our",
+    "their", "what", "which", "who", "whom", "my", "your", "me",
+    "him", "us"
+
+  ])
+
+};
+
+
+/*
+ * Сокращения, после которых точка НЕ заканчивает предложение.
+ *
+ * Например: «и т. д.», «рис. 5», «ул. Ленина», «Mr. Smith».
+ */
+const abbreviations = new Set([
+
+  "т", "д", "п", "г", "гг", "вв", "стр", "рис", "табл",
+  "см", "др", "пр", "руб", "коп", "тыс", "млн", "млрд",
+  "им", "ул", "кв", "мр", "проф", "акад",
+  "mr", "mrs", "ms", "dr", "prof", "etc", "vs",
+  "inc", "corp", "co", "jr", "sr", "vol", "approx", "dept",
+  "univ", "no", "fig", "est", "eq", "min", "max"
+
+]);
+
+
+/* =========================================================
+   РАСПОЗНАВАНИЕ ССЫЛОК И СМАЙЛОВ
+   =========================================================
+
+   Идея простая:
+
+   1. Сначала находим в тексте ссылки и смайлы.
+   2. Заменяем их на невидимые «заглушки».
+   3. Только после этого считаем слова и предложения.
+
+   Так точки внутри ссылки (site.ru) больше не рвут текст
+   на предложения, а «:)» не превращается в слово «)».
+   ========================================================= */
+
+
+/* Ссылки, домены и адреса электронной почты. */
+const LINK_REGEX = new RegExp(
+  "(?:https?:\\/\\/|ftp:\\/\\/|www\\.)[^\\s<>\"'«»]+" +
+  "|[a-zа-яё0-9][a-zа-яё0-9._%+-]*@[a-zа-яё0-9-]+\\.[a-zа-яё]{2,}" +
+  "|[a-zа-яё0-9-]+(?:\\.[a-zа-яё0-9-]+)*" +
+  "\\.(?:ru|рф|com|net|org|io|dev|app|me|info|biz|edu|gov|online|" +
+  "site|store|shop|ua|by|kz|uk|de|fr|it|es|pl|tv|cc|co|xyz|tech)" +
+  "(?:\\/[^\\s<>\"'«»]*)?",
+  "gi"
+);
+
+
+/* Картиночные смайлы (эмодзи), включая составные и флаги. */
+let EMOJI_REGEX;
+
+try {
+
+  const emojiPart =
+    "\\p{Extended_Pictographic}" +
+    "[\\u{1F3FB}-\\u{1F3FF}]?" +
+    "(?:\\uFE0F|\\uFE0E)?";
+
+  EMOJI_REGEX = new RegExp(
+    "(?:\\p{Regional_Indicator}{2})" +
+    "|(?:" + emojiPart + "(?:\\u200D" + emojiPart + ")*)",
+    "gu"
+  );
+
+} catch (error) {
+
+  /* Запасной вариант для очень старых браузеров. */
+  EMOJI_REGEX = /(?:[\uD83C-\uDBFF][\uDC00-\uDFFF])+|[←-⇿☀-➿⬀-⯿️]/g;
+
+}
+
+
+/*
+ * Текстовые смайлы: :) ;-) :D ))) ^_^ <3 xD
+ *
+ * Ветки «8-?[)(dр]» и «[xх]-?[dд]» раньше проверялись через
+ * негативный lookbehind (?<!...) — синтаксис, который старые
+ * мобильные браузеры (Safari до версии 16.4 и некоторые
+ * встроенные WebView) не поддерживают. Regex с неизвестным
+ * им синтаксисом бросает исключение прямо при создании,
+ * а поскольку эта строка выполняется в самом начале скрипта,
+ * ошибка обрывала вообще весь JS на странице — переставали
+ * работать и кнопка анализа, и переключатель языка, и всё
+ * остальное сразу.
+ *
+ * Здесь те же две ветки обёрнуты в обычные группы захвата,
+ * а проверка «перед смайлом не должно быть буквы/цифры»
+ * теперь делается вручную в prepareText() — без lookbehind,
+ * поэтому работает в любом браузере.
+ */
+const TEXT_SMILE_REGEX = new RegExp(
+  "(?:[:;=]-?[)(\\[\\]dpрзc*|\\/\\\\]{1,5})" +
+  "|(8-?[)(dр]{1,5})" +
+  "|\\){2,}" +
+  "|\\({2,}" +
+  "|\\^_?\\^" +
+  "|<3" +
+  "|([xх]-?[dд])(?![а-яёa-z0-9])",
+  "gi"
+);
+
+
+/* Служебные символы для «заглушек» (их нет в обычном тексте). */
+const LINK_MARK = "";
+const EMOJI_MARK = "";
+const DIGIT_BASE = 0xE010;
+
+
+function makePlaceholder(mark, index) {
+
+  const digits = String(index)
+    .split("")
+    .map(digit => String.fromCharCode(DIGIT_BASE + Number(digit)))
+    .join("");
+
+  return mark + digits + mark;
+
+}
+
+
+function decodePlaceholderIndex(digits) {
+
+  let result = "";
+
+  for (const char of digits) {
+    result += String.fromCharCode(char.charCodeAt(0) - DIGIT_BASE + 48);
+  }
+
+  return Number(result);
+
+}
+
+
+/*
+ * Готовит текст к анализу:
+ * возвращает «очищенный» текст + списки ссылок и смайлов.
+ */
+function prepareText(rawText) {
+
+  const links = [];
+  const emojis = [];
+
+  let text = rawText;
+
+
+  /* 1. Ссылки — самыми первыми, чтобы «://» не съел смайл. */
+  text = text.replace(LINK_REGEX, match => {
+
+    /* Точку или запятую в конце ссылки возвращаем тексту. */
+    let tail = "";
+    const tailMatch = match.match(/[.,!?;:…»)\]]+$/);
+
+    if (tailMatch) {
+      tail = tailMatch[0];
+      match = match.slice(0, match.length - tail.length);
+    }
+
+    if (!match) {
+      return tail;
+    }
+
+    links.push(match);
+
+    return makePlaceholder(LINK_MARK, links.length - 1) + tail;
+
+  });
+
+
+  /* 2. Эмодзи. */
+  text = text.replace(EMOJI_REGEX, match => {
+    emojis.push(match);
+    return makePlaceholder(EMOJI_MARK, emojis.length - 1);
+  });
+
+
+  /*
+   * 3. Текстовые смайлы.
+   *
+   * Ветки «8)» и «xD» (группы 1 и 2) должны срабатывать,
+   * только если ПЕРЕД ними нет буквы/цифры — иначе «в8)шел»
+   * или «Alex Dдым» превратились бы в смайл. Раньше это
+   * делал негативный lookbehind в самой регулярке; теперь
+   * проверяем предыдущий символ вручную через offset —
+   * так регулярка работает и в старых браузерах.
+   */
+  text = text.replace(TEXT_SMILE_REGEX, (match, eightStyle, xdStyle, offset, fullString) => {
+
+    if (eightStyle || xdStyle) {
+      const charBefore = fullString[offset - 1] || "";
+      if (/[а-яёa-z0-9]/i.test(charBefore)) {
+        return match;
+      }
+    }
+
+    emojis.push(match);
+    return makePlaceholder(EMOJI_MARK, emojis.length - 1);
+
+  });
+
+
+  return { text, links, emojis };
+
+}
+
+
+/* Возвращает в текст настоящие ссылки и смайлы (для показа). */
+function restorePlaceholders(text, links, emojis) {
+
+  return text
+
+    .replace(
+      /([-]+)/g,
+      (match, digits) => links[decodePlaceholderIndex(digits)] || ""
+    )
+
+    .replace(
+      /([-]+)/g,
+      (match, digits) => emojis[decodePlaceholderIndex(digits)] || ""
+    );
+
+}
+
+
+/* =========================================================
+   ОПРЕДЕЛЕНИЕ СЛОВ
+   =========================================================
+
+   веб-страница       → 1 слово
+   AI-анализатор      → 1 слово
+   don't              → 1 слово
+
+   Ссылки и смайлы сюда уже не попадают:
+   они заменены на заглушки.
+   ========================================================= */
+
+function extractWords(text) {
+
+  return text.match(
+    /[а-яёa-z0-9]+(?:[-'’][а-яёa-z0-9]+)*/gi
+  ) || [];
+
+}
+
+
+function countWords(text) {
+
+  return extractWords(text).length;
+
+}
+
+
+/* =========================================================
+   ОПРЕДЕЛЕНИЕ ПРЕДЛОЖЕНИЙ
+   ========================================================= */
+
+
+/*
+ * Делит строку по знакам конца предложения.
+ *
+ * Не разрывает:
+ *   3.14        (точка между цифрами)
+ *   и т. д.     (известное сокращение)
+ *   site.ru     (уже заменено на заглушку)
+ */
+function splitByEndMarks(text) {
+
+  const marks = ".!?…";
+  const closers = "\"»')]”’";
+
+  const parts = [];
+  let buffer = "";
+
+
+  for (let i = 0; i < text.length; i++) {
+
+    const char = text[i];
+    buffer += char;
+
+    if (marks.indexOf(char) === -1) {
+      continue;
+    }
+
+
+    /* Собираем подряд идущие знаки и кавычки: «?!»» */
+    let j = i + 1;
+
+    while (
+      j < text.length &&
+      (marks.indexOf(text[j]) !== -1 || closers.indexOf(text[j]) !== -1)
+    ) {
+      buffer += text[j];
+      j++;
+    }
+
+
+    const nextChar = text[j];
+    const isEnd = j >= text.length || /\s/.test(nextChar);
+
+    i = j - 1;
+
+    if (!isEnd) {
+      continue;
+    }
+
+    if (char === "." && isAbbreviation(buffer)) {
+      continue;
+    }
+
+    parts.push(buffer);
+    buffer = "";
+
+  }
+
+
+  if (buffer.trim().length > 0) {
+    parts.push(buffer);
+  }
+
+  return parts;
+
+}
+
+
+function isAbbreviation(buffer) {
+
+  const match = buffer.match(/([а-яёa-z]+)\.$/i);
+
+  return Boolean(match) && abbreviations.has(match[1].toLowerCase());
+
+}
+
+
+/*
+ * Кусок текста БЕЗ знаков препинания.
+ *
+ * Раньше такой кусок всегда считался одним предложением —
+ * даже если это была стена текста на 200 слов.
+ *
+ * Теперь делим его двумя способами:
+ *
+ *   1. по заглавной букве в середине («...домой Завтра будет...»)
+ *   2. по длине: слишком длинный кусок режем на равные части
+ */
+function splitWithoutPunctuation(fragment) {
+
+  /*
+   * Раньше здесь стоял негативный lookbehind вида
+   * /(?<=[а-яёa-z0-9,;:])\s+(?=[А-ЯЁA-Z])/ — синтаксис,
+   * не поддерживаемый старыми мобильными браузерами
+   * (Safari до 16.4 и рядом встроенных WebView). На таких
+   * браузерах эта строка ломала весь скрипт целиком, а не
+   * только деление предложений.
+   *
+   * Тот же результат без lookbehind: помечаем маркером место
+   * «буква/цифра + пробел + Заглавная буква», затем делим
+   * по маркеру. Lookahead (?=[А-ЯЁA-Z]) оставляем — он
+   * поддерживается везде и проблем не вызывает.
+   */
+  const SENTENCE_SPLIT_MARK = "␟";
+
+  const byCapitalLetter = fragment
+
+    .replace(/([а-яёa-z0-9,;:])\s+(?=[А-ЯЁA-Z])/g, "$1" + SENTENCE_SPLIT_MARK)
+
+    .split(SENTENCE_SPLIT_MARK)
+
+    .map(part => part.trim())
+
+    .filter(part => part.length > 0);
+
+
+  const result = [];
+
+
+  byCapitalLetter.forEach(part => {
+
+    const words = part.split(/\s+/);
+
+    if (words.length <= MAX_WORDS_WITHOUT_PUNCTUATION) {
+      result.push(part);
+      return;
+    }
+
+    const chunks = Math.ceil(
+      words.length / MAX_WORDS_WITHOUT_PUNCTUATION
+    );
+
+    const size = Math.ceil(words.length / chunks);
+
+    for (let i = 0; i < words.length; i += size) {
+      result.push(words.slice(i, i + size).join(" "));
+    }
+
+  });
+
+
+  return result;
+
+}
+
+
+/*
+ * Возвращает объект:
+ *
+ * {
+ *   sentences:   массив предложений,
+ *   approximate: true, если деление было «на глаз»
+ * }
+ */
+function extractSentences(text) {
+
+  const cleanText = text.trim();
+
+
+  if (!cleanText || !/[а-яёa-z]/i.test(cleanText)) {
+    return { sentences: [], approximate: false };
+  }
+
+
+  const sentences = [];
+  let approximate = false;
+
+
+  cleanText.split(/\n+/).forEach(line => {
+
+    const cleanLine = line.trim();
+
+    if (!cleanLine) {
+      return;
+    }
+
+
+    splitByEndMarks(cleanLine).forEach(rawPart => {
+
+      const part = rawPart.trim();
+
+      if (!part || !/[а-яёa-z]/i.test(part)) {
+        return;
+      }
+
+
+      /* Кусок закончился точкой/!/? — это настоящее предложение. */
+      if (/[.!?…]["»')\]”’]*$/.test(part)) {
+        sentences.push(part);
+        return;
+      }
+
+
+      /* Знаков конца нет — делим по смыслу и длине. */
+      const guessed = splitWithoutPunctuation(part);
+
+      if (guessed.length > 1) {
+        approximate = true;
+      }
+
+      guessed.forEach(sentence => sentences.push(sentence));
+
+    });
+
+  });
+
+
+  return { sentences, approximate };
+
+}
+
+
+/* =========================================================
+   ВРЕМЯ ЧТЕНИЯ
+   ========================================================= */
+
+/*
+ * Насколько текст сложнее или проще «среднего» русского текста.
+ *
+ * Смотрим на среднюю длину слова: длинные слова (термины,
+ * составные конструкции) читаются медленнее коротких.
+ *
+ * Возвращает множитель времени чтения:
+ *   1.0   — обычный текст
+ *   > 1.0 — текст сложнее среднего, читается медленнее
+ *   < 1.0 — текст проще среднего, читается быстрее
+ */
+function estimateComplexity(words, lang) {
+
+  if (words.length === 0) {
+    return 1;
+  }
+
+  const totalChars = words.reduce((sum, word) => sum + word.length, 0);
+  const averageLength = totalChars / words.length;
+
+  const factor = averageLength / AVERAGE_WORD_LENGTH[lang];
+
+  return Math.min(COMPLEXITY_MAX, Math.max(COMPLEXITY_MIN, factor));
+
+}
+
+
+/* Секунды → «46 сек» / «1 мин» / «1 мин 16 сек» (или sec/min на английском). */
+function formatSeconds(totalSeconds) {
+
+  const seconds = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60);
+
+  if (minutes === 0) {
+    return `${seconds} ${t("seconds")}`;
+  }
+
+  if (seconds === 0) {
+    return `${minutes} ${t("minutes")}`;
+  }
+
+  return `${minutes} ${t("minutes")} ${seconds} ${t("seconds")}`;
+
+}
+
+
+/*
+ * Возвращает время чтения ДИАПАЗОНОМ: «от быстрого читателя
+ * до медленного», а не одним псевдоточным числом.
+ *
+ * approximate — true, если границы предложений определены
+ * «на глаз» (в тексте нет знаков препинания); такой текст
+ * читать сложнее, поэтому к времени добавляется штраф.
+ */
+function calculateReadingTime(text, numberOfEmojis, numberOfLinks, approximate, analysisLang) {
+
+  const words = extractWords(text);
+  const numberOfWords = words.length;
+
+
+  if (
+    numberOfWords === 0 &&
+    numberOfEmojis === 0 &&
+    numberOfLinks === 0
+  ) {
+    return t("zeroSeconds");
+  }
+
+
+  /* ---- Паузы, не зависящие от скорости чтения ---- */
+
+  let extraSeconds = 0;
+
+
+  /* Обычные знаки препинания. */
+  const punctuation = text.match(/[,;:]/g) || [];
+
+  extraSeconds += punctuation.length * PAUSE_AFTER_PUNCTUATION;
+
+
+  /* Концы предложений: «!!!» считается одной паузой. */
+  const sentenceMarks = text.match(/[.!?…]+/g) || [];
+
+  extraSeconds += sentenceMarks.length * PAUSE_AFTER_SENTENCE;
+
+
+  /* Переносы строк. */
+  const lineBreaks = text.match(/\n/g) || [];
+
+  extraSeconds += lineBreaks.length * 0.2;
+
+
+  /* Смайлы, ссылки и голые числа. */
+  const numberTokens = words.filter(word => /^\d+$/.test(word));
+
+  extraSeconds += numberOfEmojis * PAUSE_FOR_EMOJI;
+  extraSeconds += numberOfLinks * PAUSE_FOR_LINK;
+  extraSeconds += numberTokens.length * PAUSE_FOR_NUMBER;
+
+
+  /* ---- Скорость чтения слов: диапазон + сложность текста ---- */
+
+  const complexity = estimateComplexity(words, analysisLang);
+
+  const fastSeconds = (numberOfWords / READING_SPEED_FAST) * 60 * complexity + extraSeconds;
+  const slowSeconds = (numberOfWords / READING_SPEED_SLOW) * 60 * complexity + extraSeconds;
+
+  let lowSeconds = Math.max(1, Math.round(fastSeconds));
+  let highSeconds = Math.max(lowSeconds, Math.round(slowSeconds));
+
+
+  /* Текст без знаков препинания читать сложнее — накидываем штраф. */
+  if (approximate) {
+    lowSeconds = Math.round(lowSeconds * APPROXIMATE_TIME_PENALTY);
+    highSeconds = Math.round(highSeconds * APPROXIMATE_TIME_PENALTY);
+  }
+
+
+  const lowLabel = formatSeconds(lowSeconds);
+  const highLabel = formatSeconds(highSeconds);
+
+  return lowLabel === highLabel ? lowLabel : `${lowLabel} – ${highLabel}`;
+
+}
+
+
+/* =========================================================
+   ЭКРАНИРОВАНИЕ HTML
+   ========================================================= */
+
+function escapeHtml(text) {
+
+  const div = document.createElement("div");
+
+  div.textContent = text;
+
+  return div.innerHTML;
+
+}
+
+
+/* Показывает список «плашек» или подпись «ничего не найдено». */
+function renderChips(container, items, emptyMessage, extraClass) {
+
+  if (items.length === 0) {
+
+    container.innerHTML =
+      `<span class="empty">${escapeHtml(emptyMessage)}</span>`;
+
+    return;
+
+  }
+
+
+  container.innerHTML = items
+
+    .map(([value, count]) => `
+      <span class="chip ${extraClass || ""}">
+        ${escapeHtml(value)}${count > 1 ? " × " + count : ""}
+      </span>
+    `)
+
+    .join("");
+
+}
+
+
+/* Считает, сколько раз встретился каждый элемент списка. */
+function countUnique(items) {
+
+  const counter = new Map();
+
+  items.forEach(item => {
+    counter.set(item, (counter.get(item) || 0) + 1);
+  });
+
+  return [...counter.entries()].sort((a, b) => b[1] - a[1]);
+
+}
+
+
+/* =========================================================
+   ЯЗЫК ИНТЕРФЕЙСА И АНАЛИЗА
+   =========================================================
+
+   Один переключатель (RU / EN) управляет двумя вещами сразу:
+
+   1. Текстом интерфейса (подписи, кнопки, сообщения).
+   2. Логикой анализа: стоп-словами для ТОП-5 слов и
+      триггерами «подводных камней» — раньше они были
+      зашиты только на русском, поэтому на английском
+      тексте функция ничего не находила.
+   ========================================================= */
+
+const TRANSLATIONS = {
+
+  ru: {
+    docTitle: "AI-анализатор текста",
+    brandCopy: "Быстрый разбор текста — без лишнего шума.",
+    eyebrow: "Text intelligence",
+    pageTitle: "AI-анализатор текста",
+    subtitle: "Вставьте текст и получите подробный анализ.",
+    textareaPlaceholder: "Вставьте сюда текст для анализа...",
+    analyzeButton: "Проанализировать",
+    pitfallsTitle: "Подводные камни",
+    pitfallsDesc: "Найдём места, которые стоит перепроверить или обсудить внимательнее.",
+    pitfallsBadge: "Критическое чтение",
+    pitfallsButton: "Найти подводные камни",
+    pitfallsInitialStatusTitle: "Статус",
+    pitfallsInitialStatusText: "Вставьте текст и нажмите «Найти подводные камни».",
+    pitfallsEmptyPrompt: "Сначала вставьте текст, ссылку или материал для анализа.",
+    pitfallsLinkDetectedTitle: "Ссылка обнаружена",
+    pitfallsLinkDetectedText: "Чтобы анализ был честным и не зависел от ограничений доступа сайта, вставьте сюда текст статьи. После этого функция покажет конкретные утверждения и места для проверки.",
+    statWords: "Количество слов",
+    statSentences: "Количество предложений",
+    statReadingTime: "Время чтения",
+    statEmoji: "Смайлы",
+    statLinks: "Ссылки",
+    topWordsTitle: "5 самых частых слов",
+    topWordsEmptyInitial: "Здесь появятся результаты анализа",
+    topWordsEmptyNoRepeats: "Повторяющихся слов нет: каждое значимое слово встречается один раз",
+    longestSentenceTitle: "Самое длинное предложение",
+    longestSentenceEmptyInitial: "Здесь появится результат анализа",
+    longestSentenceEmptyNone: "Предложения не обнаружены.",
+    chipsTitle: "Смайлы и ссылки в тексте",
+    emojiSubtitle: "Смайлы",
+    emojiEmpty: "Смайлы не найдены",
+    linksSubtitle: "Ссылки и адреса почты",
+    linksEmpty: "Ссылки не найдены",
+    resetEmptyMessage: "Введите текст для анализа",
+    sentenceHintApprox: "В тексте нет знаков препинания, границы предложений определены примерно.",
+    zeroSeconds: "0 сек",
+    seconds: "сек",
+    minutes: "мин",
+    priorityTitle: "На что обратить внимание в первую очередь",
+    priorityEmpty: "Явных проблем по заданным признакам не найдено.",
+    issuesTitle: "Подводные камни",
+    issuesEmpty: "Явных подводных камней не найдено. Это не заменяет проверку фактов, но в тексте нет заметных сигналов риска.",
+    checksTitle: "Что проверить",
+    checksEmpty: "Проверьте только первоисточники ключевых фактов, если текст используется для важного решения.",
+    questionsTitle: "Вопросы после прочтения",
+    questionsEmpty: "Какие источники подтверждают главные факты текста?",
+    questionsList: [
+      "Какие данные подтверждают ключевые выводы?",
+      "В каких условиях утверждения перестают работать?",
+      "Есть ли независимые источники?"
+    ],
+    quoteOpen: "«",
+    quoteClose: "»",
+    toggleLabel: "EN",
+    toggleAriaLabel: "Switch to English",
+    pitfallLabels: {
+      overconfident: {
+        title: "Слишком уверенное утверждение",
+        reason: "Формулировка не оставляет места для исключений или контекста.",
+        check: "Найти условия, методику и первоисточник утверждения."
+      },
+      factCheck: {
+        title: "Факт, который желательно перепроверить",
+        reason: "В тексте есть ссылка на доказательность, но детали источника могут быть не раскрыты.",
+        check: "Проверить автора, дату публикации, выборку и ссылку на первоисточник."
+      },
+      conclusion: {
+        title: "Вывод требует обоснования",
+        reason: "Связка между причиной и выводом может быть заявлена, но не доказана.",
+        check: "Проверить, есть ли промежуточные данные и альтернативные объяснения."
+      },
+      limitation: {
+        title: "Важное ограничение",
+        reason: "Автор обозначает условие или исключение — его легко пропустить при быстром чтении.",
+        check: "Уточнить, на кого и в каких условиях распространяется вывод."
+      }
+    }
+  },
+
+  en: {
+    docTitle: "AI Text Analyzer",
+    brandCopy: "Quick text breakdown — no extra noise.",
+    eyebrow: "Text intelligence",
+    pageTitle: "AI Text Analyzer",
+    subtitle: "Paste your text and get a detailed analysis.",
+    textareaPlaceholder: "Paste the text to analyze here...",
+    analyzeButton: "Analyze",
+    pitfallsTitle: "Pitfalls",
+    pitfallsDesc: "We'll find spots worth double-checking or discussing more carefully.",
+    pitfallsBadge: "Critical reading",
+    pitfallsButton: "Find pitfalls",
+    pitfallsInitialStatusTitle: "Status",
+    pitfallsInitialStatusText: "Paste text and click “Find pitfalls”.",
+    pitfallsEmptyPrompt: "First paste the text, a link, or material to analyze.",
+    pitfallsLinkDetectedTitle: "Link detected",
+    pitfallsLinkDetectedText: "To keep the analysis honest and independent of the site's access limits, paste the article's text here instead. The feature will then show specific claims and spots worth checking.",
+    statWords: "Word count",
+    statSentences: "Sentence count",
+    statReadingTime: "Reading time",
+    statEmoji: "Emojis",
+    statLinks: "Links",
+    topWordsTitle: "Top 5 most frequent words",
+    topWordsEmptyInitial: "Analysis results will appear here",
+    topWordsEmptyNoRepeats: "No repeated words: every meaningful word appears only once",
+    longestSentenceTitle: "Longest sentence",
+    longestSentenceEmptyInitial: "The analysis result will appear here",
+    longestSentenceEmptyNone: "No sentences found.",
+    chipsTitle: "Emojis and links in the text",
+    emojiSubtitle: "Emojis",
+    emojiEmpty: "No emojis found",
+    linksSubtitle: "Links and email addresses",
+    linksEmpty: "No links found",
+    resetEmptyMessage: "Enter text to analyze",
+    sentenceHintApprox: "The text has no punctuation, so sentence boundaries are approximate.",
+    zeroSeconds: "0 sec",
+    seconds: "sec",
+    minutes: "min",
+    priorityTitle: "What to pay attention to first",
+    priorityEmpty: "No obvious issues found based on the current signals.",
+    issuesTitle: "Pitfalls",
+    issuesEmpty: "No obvious pitfalls found. This doesn't replace fact-checking, but there are no noticeable risk signals in the text.",
+    checksTitle: "What to check",
+    checksEmpty: "Check the primary sources of key facts if this text is used for an important decision.",
+    questionsTitle: "Questions to ask after reading",
+    questionsEmpty: "What sources support the main facts in the text?",
+    questionsList: [
+      "What data supports the key conclusions?",
+      "Under what conditions do the claims stop holding?",
+      "Are there independent sources?"
+    ],
+    quoteOpen: "“",
+    quoteClose: "”",
+    toggleLabel: "RU",
+    toggleAriaLabel: "Переключить на русский",
+    pitfallLabels: {
+      overconfident: {
+        title: "Overconfident claim",
+        reason: "The wording leaves no room for exceptions or context.",
+        check: "Look for the conditions, methodology, and original source of the claim."
+      },
+      factCheck: {
+        title: "Fact worth double-checking",
+        reason: "The text references evidence, but the source details may not be fully disclosed.",
+        check: "Check the author, publication date, sample size, and link to the primary source."
+      },
+      conclusion: {
+        title: "Conclusion needs justification",
+        reason: "The link between the cause and the conclusion may be asserted but not actually proven.",
+        check: "Check whether there is intermediate data and alternative explanations."
+      },
+      limitation: {
+        title: "Important limitation",
+        reason: "The author flags a condition or exception — easy to miss on a quick read.",
+        check: "Clarify who the conclusion applies to and under what conditions."
+      }
+    }
+  }
+
+};
+
+
+/*
+ * Регулярки-триггеры для «подводных камней» — отдельно от
+ * подписей (title/reason/check, они в TRANSLATIONS[lang].pitfallLabels).
+ *
+ * Ключ верхнего уровня — это язык АНАЛИЗИРУЕМОГО ТЕКСТА,
+ * а не язык интерфейса: они определяются независимо.
+ * Так пользователь может держать интерфейс на русском
+ * и при этом вставлять английский текст — функция сама
+ * поймёт, что текст английский, и найдёт английские
+ * маркеры («always», «however», «according to» и т. д.),
+ * а объяснения покажет на выбранном языке интерфейса.
+ */
+const PITFALL_REGEX = {
+
+  ru: {
+    overconfident: /[^.!?\n]*(?:всегда|никогда|лучший|единственный|гарантирует|доказывает|точно|очевидно|без сомнения)[^.!?\n]*[.!?]?/gi,
+    factCheck: /[^.!?\n]*(?:исследован|статистик|процент|учён|эксперт|данн|факт)[^.!?\n]*[.!?]?/gi,
+    conclusion: /[^.!?\n]*(?:поэтому|значит|следовательно|это доказывает|именно поэтому)[^.!?\n]*[.!?]?/gi,
+    limitation: /[^.!?\n]*(?:но|однако|при этом|исключая|только если|зависит от)[^.!?\n]*[.!?]?/gi
+  },
+
+  en: {
+    overconfident: /[^.!?\n]*(?:always|never|best|only one|the only|guarantees?|proves?|definitely|obviously|undoubtedly|without a doubt)[^.!?\n]*[.!?]?/gi,
+    factCheck: /[^.!?\n]*(?:research|studies|statistics?|percent|scientists?|experts?|data shows|according to)[^.!?\n]*[.!?]?/gi,
+    conclusion: /[^.!?\n]*(?:therefore|thus|hence|this proves|that('|’)s why|so it follows)[^.!?\n]*[.!?]?/gi,
+    limitation: /[^.!?\n]*(?:\bbut\b|however|that said|except|only if|depends on)[^.!?\n]*[.!?]?/gi
+  }
+
+};
+
+
+/*
+ * Определяет язык КОНКРЕТНОГО ТЕКСТА по соотношению
+ * кириллических и латинских букв — независимо от того,
+ * на каком языке сейчас интерфейс.
+ *
+ * Если букв того или иного алфавита нет вовсе (текст пуст
+ * или это одни цифры/эмодзи), используется язык интерфейса
+ * как разумный запасной вариант.
+ */
+function detectTextLanguage(text) {
+
+  const cyrillicCount = (text.match(/[а-яё]/gi) || []).length;
+  const latinCount = (text.match(/[a-z]/gi) || []).length;
+
+  if (cyrillicCount === 0 && latinCount === 0) {
+    return currentLang;
+  }
+
+  return cyrillicCount >= latinCount ? "ru" : "en";
+
+}
+
+
+/* Достаёт локализованную строку/список для текущего языка. */
+function t(key) {
+  return TRANSLATIONS[currentLang][key];
+}
+
+
+/* Обновляет весь статический текст на странице под текущий язык. */
+function applyStaticTranslations() {
+
+  document.documentElement.lang = currentLang;
+  document.title = t("docTitle");
+
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+
+  langToggle.textContent = t("toggleLabel");
+  langToggle.setAttribute("aria-label", t("toggleAriaLabel"));
+
+}
+
+
+/* Показывает «пустое» состояние результатов на текущем языке. */
+function showInitialResults() {
+
+  wordCount.textContent = "0";
+  sentenceCount.textContent = "0";
+  sentenceHint.textContent = "";
+  readingTime.textContent = t("zeroSeconds");
+  emojiCount.textContent = "0";
+  linkCount.textContent = "0";
+
+  topWords.innerHTML = `<span class="empty">${escapeHtml(t("topWordsEmptyInitial"))}</span>`;
+
+  longestSentence.textContent = t("longestSentenceEmptyInitial");
+  longestSentence.className = "empty";
+
+  emojiList.innerHTML = `<span class="empty">${escapeHtml(t("emojiEmpty"))}</span>`;
+  linkList.innerHTML = `<span class="empty">${escapeHtml(t("linksEmpty"))}</span>`;
+
+  pitfallsResult.innerHTML = renderPitfallBox(
+    t("pitfallsInitialStatusTitle"),
+    `<p>${t("pitfallsInitialStatusText")}</p>`
+  );
+
+}
+
+
+/*
+ * Переключает язык интерфейса и анализа.
+ *
+ * Если в поле уже есть текст — пересчитывает результаты
+ * на новом языке (другие стоп-слова и триггеры «подводных
+ * камней»). Если поле пустое — просто обновляет подписи.
+ */
+function setLanguage(lang) {
+
+  currentLang = lang;
+  applyStaticTranslations();
+
+  if (textInput.value.trim()) {
+    analyzeText();
+    analyzePitfalls();
+  } else {
+    showInitialResults();
+  }
+
+}
+
+
+/* =========================================================
+   СБРОС РЕЗУЛЬТАТОВ
+   ========================================================= */
+
+function resetResults(message) {
+
+  wordCount.textContent = "0";
+  sentenceCount.textContent = "0";
+  sentenceHint.textContent = "";
+  readingTime.textContent = t("zeroSeconds");
+  emojiCount.textContent = "0";
+  linkCount.textContent = "0";
+
+  topWords.innerHTML = `<span class="empty">${escapeHtml(message)}</span>`;
+
+  longestSentence.textContent = message;
+  longestSentence.className = "empty";
+
+  emojiList.innerHTML = `<span class="empty">${escapeHtml(t("emojiEmpty"))}</span>`;
+  linkList.innerHTML = `<span class="empty">${escapeHtml(t("linksEmpty"))}</span>`;
+
+}
+
+
+/* =========================================================
+   ОСНОВНОЙ АНАЛИЗ
+   ========================================================= */
+
+function analyzeText() {
+
+  const rawText = textInput.value.trim();
+
+
+  if (!rawText) {
+    resetResults(t("resetEmptyMessage"));
+    return;
+  }
+
+
+  /*
+   * Язык САМОГО ТЕКСТА — определяется отдельно от языка
+   * интерфейса (currentLang). Так стоп-слова, сортировка
+   * и оценка сложности работают правильно, даже если
+   * пользователь не переключал интерфейс на английский.
+   */
+  const analysisLang = detectTextLanguage(rawText);
+
+
+  /* ---------------------------------------------------------
+     0. СНАЧАЛА ВЫНИМАЕМ ССЫЛКИ И СМАЙЛЫ
+  --------------------------------------------------------- */
+
+  const prepared = prepareText(rawText);
+
+  const text = prepared.text;
+  const links = prepared.links;
+  const emojis = prepared.emojis;
+
+
+  emojiCount.textContent = emojis.length;
+  linkCount.textContent = links.length;
+
+  renderChips(emojiList, countUnique(emojis), t("emojiEmpty"), "emoji");
+  renderChips(linkList, countUnique(links), t("linksEmpty"));
+
+
+  /* ---------------------------------------------------------
+     1. СЛОВА
+  --------------------------------------------------------- */
+
+  const words = extractWords(text);
+
+  wordCount.textContent = words.length;
+
+
+  /* ---------------------------------------------------------
+     2. ПРЕДЛОЖЕНИЯ
+  --------------------------------------------------------- */
+
+  const result = extractSentences(text);
+  const sentences = result.sentences;
+
+
+  sentenceCount.textContent =
+    result.approximate ? "≈ " + sentences.length : sentences.length;
+
+
+  sentenceHint.textContent = result.approximate
+    ? t("sentenceHintApprox")
+    : "";
+
+
+  /* ---------------------------------------------------------
+     3. ВРЕМЯ ЧТЕНИЯ
+  --------------------------------------------------------- */
+
+  readingTime.textContent =
+    calculateReadingTime(text, emojis.length, links.length, result.approximate, analysisLang);
+
+
+  /* ---------------------------------------------------------
+     4. ЧАСТОТНОСТЬ СЛОВ
+  --------------------------------------------------------- */
+
+  const frequency = new Map();
+
+
+  words.forEach(word => {
+
+    const normalized = word.toLowerCase();
+
+
+    /* Служебные слова, одиночные буквы и голые числа
+       в ТОП не идут (в общем счётчике слов они есть). */
+
+    if (normalized.length < 2) return;
+    if (/^\d+$/.test(normalized)) return;
+    if (STOP_WORDS[analysisLang].has(normalized)) return;
+
+
+    frequency.set(normalized, (frequency.get(normalized) || 0) + 1);
+
+  });
+
+
+  const mostFrequent = [...frequency.entries()]
+
+    /* ГЛАВНОЕ: слово считается частым,
+       только если встретилось хотя бы 2 раза. */
+    .filter(entry => entry[1] >= MIN_WORD_FREQUENCY)
+
+    .sort((a, b) => {
+
+      if (b[1] !== a[1]) {
+        return b[1] - a[1];
+      }
+
+      return a[0].localeCompare(b[0], analysisLang);
+
+    })
+
+    .slice(0, 5);
+
+
+  if (mostFrequent.length === 0) {
+
+    topWords.innerHTML =
+      `<span class="empty">${escapeHtml(t("topWordsEmptyNoRepeats"))}</span>`;
+
+  } else {
+
+    topWords.innerHTML = mostFrequent
+
+      .map(([word, count]) => `
+        <span class="word">
+          ${escapeHtml(word)} — ${count}
+        </span>
+      `)
+
+      .join("");
+
+  }
+
+
+  /* ---------------------------------------------------------
+     5. САМОЕ ДЛИННОЕ ПРЕДЛОЖЕНИЕ
+  --------------------------------------------------------- */
+
+  if (sentences.length === 0) {
+
+    longestSentence.textContent = t("longestSentenceEmptyNone");
+    longestSentence.className = "empty";
+
+    return;
+
+  }
+
+
+  let longest = sentences[0];
+
+
+  sentences.forEach(sentence => {
+
+    if (countWords(sentence) > countWords(longest)) {
+      longest = sentence;
+    }
+
+  });
+
+
+  longestSentence.textContent =
+    restorePlaceholders(longest, links, emojis);
+
+  longestSentence.className = "";
+
+}
+
+
+/* =========================================================
+   ЗАЩИТА ОТ ТИХИХ ОШИБОК
+   =========================================================
+
+   Раньше одна упавшая с ошибкой строка где-то в середине
+   скрипта (например, неподдерживаемый браузером синтаксис
+   регулярки) обрывала вообще весь JS — кнопки переставали
+   реагировать без единой подсказки, что вообще случилось.
+
+   safeRun() оборачивает обработчики кликов: если внутри
+   что-то бросит исключение, страница покажет понятное
+   сообщение вместо молчаливого «ничего не происходит»,
+   а подробности попадут в консоль браузера для отладки.
+   ========================================================= */
+
+function showRuntimeError(error) {
+
+  console.error("AnaliseT runtime error:", error);
+
+  let banner = document.getElementById("runtimeErrorBanner");
+
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "runtimeErrorBanner";
+    banner.className = "runtime-error-banner";
+    document.body.insertBefore(banner, document.body.firstChild);
+  }
+
+  const message = (currentLang === "ru")
+    ? "Что-то пошло не так при обработке текста. Попробуйте обновить страницу или открыть сайт в другом браузере."
+    : "Something went wrong while processing the text. Try refreshing the page or opening the site in a different browser.";
+
+  banner.textContent = message;
+  banner.style.display = "block";
+
+}
+
+function safeRun(fn) {
+  return function (...args) {
+    try {
+      return fn.apply(this, args);
+    } catch (error) {
+      showRuntimeError(error);
+    }
+  };
+}
+
+
+/* =========================================================
+   КНОПКА
+   ========================================================= */
+
+  analyzeButton.addEventListener("click", safeRun(analyzeText));
+
+  const pitfallsButton = document.getElementById("pitfallsButton");
+  const pitfallsResult = document.getElementById("pitfallsResult");
+
+  function renderPitfallBox(title, content, className = "") {
+    return `<div class="pitfall-box ${className}"><h3>${title}</h3>${content}</div>`;
+  }
+
+  /*
+   * Язык триггеров-регулярок определяется по САМОМУ ТЕКСТУ
+   * (detectTextLanguage), а не по языку интерфейса. Так функция
+   * находит английские подводные камни, даже если сайт
+   * остаётся на русском интерфейсе — и наоборот.
+   *
+   * Подписи (title/reason/check) при этом берутся из
+   * TRANSLATIONS[currentLang].pitfallLabels — объяснения
+   * всегда на языке интерфейса, а не языке текста.
+   */
+  function analyzePitfalls() {
+    const raw = textInput.value.trim();
+    if (!raw) {
+      pitfallsResult.innerHTML = renderPitfallBox(
+        t("pitfallsInitialStatusTitle"),
+        `<p>${t("pitfallsEmptyPrompt")}</p>`
+      );
+      return;
+    }
+    if (/^(?:https?:\/\/|www\.)\S+$/i.test(raw)) {
+      pitfallsResult.innerHTML = renderPitfallBox(
+        t("pitfallsLinkDetectedTitle"),
+        `<p>${t("pitfallsLinkDetectedText")}</p>`
+      );
+      return;
+    }
+
+    const analysisLang = detectTextLanguage(raw);
+    const regexByCategory = PITFALL_REGEX[analysisLang];
+    const labelsByCategory = t("pitfallLabels");
+
+    const issues = [];
+    const addMatches = (regex, title, reason, check) => {
+      const matches = raw.match(regex) || [];
+      matches.slice(0, 3).forEach(match => issues.push({ title, text: match.trim(), reason, check }));
+    };
+
+    Object.keys(regexByCategory).forEach(categoryKey => {
+      const label = labelsByCategory[categoryKey];
+      addMatches(regexByCategory[categoryKey], label.title, label.reason, label.check);
+    });
+
+    const uniqueIssues = issues.filter((item, index, all) => all.findIndex(other => other.text === item.text) === index);
+    const first = uniqueIssues.slice(0, 3);
+    const quoteOpen = t("quoteOpen");
+    const quoteClose = t("quoteClose");
+    const priority = first.length ? first.map(item => `<li><strong>${item.title}:</strong> ${escapeHtml(item.text)}</li>`).join("") : `<li>${t("priorityEmpty")}</li>`;
+    const issueList = first.length ? first.map(item => `<div class="pitfall-item"><strong>${item.title}</strong><p>${quoteOpen}${escapeHtml(item.text)}${quoteClose}</p><p>${item.reason}</p></div>`).join("") : `<p class="pitfall-empty">${t("issuesEmpty")}</p>`;
+    const checks = first.length ? `<ul>${first.map(item => `<li>${item.check}</li>`).join("")}</ul>` : `<p>${t("checksEmpty")}</p>`;
+    const questions = first.length ? `<ul>${t("questionsList").map(question => `<li>${question}</li>`).join("")}</ul>` : `<p>${t("questionsEmpty")}</p>`;
+    pitfallsResult.innerHTML = renderPitfallBox(t("priorityTitle"), `<ul>${priority}</ul>`) + renderPitfallBox(t("issuesTitle"), issueList) + renderPitfallBox(t("checksTitle"), checks) + renderPitfallBox(t("questionsTitle"), questions);
+  }
+
+  pitfallsButton.addEventListener("click", safeRun(analyzePitfalls));
+
+  langToggle.addEventListener("click", safeRun(() => {
+    setLanguage(currentLang === "ru" ? "en" : "ru");
+  }));
+
+
+/* Ctrl + Enter / Cmd + Enter тоже запускает анализ. */
+
+textInput.addEventListener("keydown", safeRun(event => {
+
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    analyzeText();
+  }
+
+}));
+
+
+/* Стартуем на русском языке — сразу применяем подписи и пустое состояние. */
+safeRun(() => setLanguage("ru"))();
+
+</script>
+
+</body>
+</html>
